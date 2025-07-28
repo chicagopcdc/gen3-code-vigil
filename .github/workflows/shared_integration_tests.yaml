@@ -112,7 +112,7 @@ jobs:
           # Ensure the PR is run under the same org as an Internal PR
           # and not by external forks/PRs
           - name: Check if PR is from the same organization
-            if: ${{ github.repository_owner != 'uc-cdis' }}
+            if: ${{ github.repository_owner != 'chicagopcdc' }}
             working-directory: ${{ github.workspace }}
             run:  |
               echo "github.repository_owner - ${{ github.repository_owner }}"
@@ -245,7 +245,7 @@ jobs:
             if: ${{ env.SKIP_TESTS != 'true' && env.GEN3_INSTANCE_TYPE == 'HELM_LOCAL' }}
             uses: aws-actions/configure-aws-credentials@v3
             with:
-                role-to-assume: arn:aws:iam::707767160287:role/github-action-role
+                role-to-assume: arn:aws:iam::009732147623:role/github-action-role
                 role-session-name: GitHub_to_AWS_via_FederatedOIDC
                 aws-region: "us-east-1"
                 role-duration-seconds: 7200
