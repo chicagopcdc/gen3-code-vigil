@@ -51,7 +51,7 @@ jobs:
               RELEASE_VERSION="${{ github.event.inputs.RELEASE_VERSION }}"
             else
               TEST_ENV="jenkins-perf"
-              TEST_SUITE="ALL"
+              TEST_SUITE="TestSheepdogImportClinicalMetadata"
               RELEASE_VERSION="master"
             fi
 
@@ -69,8 +69,8 @@ jobs:
 
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          JENKINS_URL: "https://jenkins.planx-pla.net"
-          JENKINS_USERNAME: "PlanXCyborg"
+          JENKINS_URL: "https://jenkins.pcdc-dev.pedscommons.org"
+          JENKINS_USERNAME: "jenkins"
           JENKINS_PASSWORD: ${{ secrets.JENKINS_API_TOKEN }}
           REPO: ${{ github.event.repository.name }}
           REPO_FN: ${{ github.event.repository.full_name }}
