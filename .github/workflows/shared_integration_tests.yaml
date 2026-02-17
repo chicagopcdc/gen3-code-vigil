@@ -108,14 +108,14 @@ jobs:
               echo "GITHUB_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_ENV
 
           # External PRs will not have access to secrets, so tests cannot run
-          - name: Skip integration tests for external PRs
-            if: ${{ github.event.pull_request.head.repo.fork == true && github.event_name == 'pull_request' }}
-            working-directory: ${{ github.workspace }}
-            run:  |
-              echo "Current repo: ${{ github.event.repository.full_name }}"
-              echo "Head Repo: ${{ github.event.pull_request.head.repo.full_name }}"
-              echo "Skipping integration tests for external PRs"
-              echo "SKIP_TESTS=true" >> $GITHUB_ENV
+          # - name: Skip integration tests for external PRs
+          #   if: ${{ github.event.pull_request.head.repo.fork == true && github.event_name == 'pull_request' }}
+          #   working-directory: ${{ github.workspace }}
+          #   run:  |
+          #     echo "Current repo: ${{ github.event.repository.full_name }}"
+          #     echo "Head Repo: ${{ github.event.pull_request.head.repo.full_name }}"
+          #     echo "Skipping integration tests for external PRs"
+          #     echo "SKIP_TESTS=true" >> $GITHUB_ENV
 
           # Skip integration tests when the following PR labels are present:
           # not-ready-for-ci / decommission-environment
@@ -255,7 +255,7 @@ jobs:
             if: ${{ env.SKIP_TESTS != 'true' }}
             uses: aws-actions/configure-aws-credentials@v3
             with:
-                role-to-assume: arn:aws:iam::707767160287:role/github-action-role
+                role-to-assume: arn:aws:iam::009732147623:role/github-action-role
                 role-session-name: GitHub_to_AWS_via_FederatedOIDC
                 aws-region: "us-east-1"
                 role-duration-seconds: 7200
