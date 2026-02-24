@@ -445,14 +445,14 @@ jobs:
               echo -e "\n\n******* Upload reports to S3 *******" >> logs/gh_action_logs.txt
               if [[ "$IS_NIGHTLY_RUN" == "true" ]]; then
                 DATE=$(date +%Y%m%d)
-                aws s3 sync ./allure-report s3://ci-allure-reports/nightly-run-$CI_ENV/$DATE >> logs/gh_action_logs.txt 2>&1
+                aws s3 sync ./allure-report s3://ci-gh-action-reports-dev/nightly-run-$CI_ENV/$DATE >> logs/gh_action_logs.txt 2>&1
                 if [ -n "$FAILED_TEST_SUITES" ]; then
-                  aws s3 sync ./rerun-allure-report s3://ci-allure-reports/nightly-run-$CI_ENV/$DATE-rerun >> logs/gh_action_logs.txt 2>&1
+                  aws s3 sync ./rerun-allure-report s3://ci-gh-action-reports-dev/nightly-run-$CI_ENV/$DATE-rerun >> logs/gh_action_logs.txt 2>&1
                 fi
               else
-                aws s3 sync ./allure-report s3://ci-allure-reports/$REPO/$PR_NUM/$RUN_NUM/$ATTEMPT_NUM >> logs/gh_action_logs.txt 2>&1
+                aws s3 sync ./allure-report s3://ci-gh-action-reports-dev/$REPO/$PR_NUM/$RUN_NUM/$ATTEMPT_NUM >> logs/gh_action_logs.txt 2>&1
                 if [ -n "$FAILED_TEST_SUITES" ]; then
-                  aws s3 sync ./rerun-allure-report s3://ci-allure-reports/$REPO/$PR_NUM/$RUN_NUM/$ATTEMPT_NUM-rerun >> logs/gh_action_logs.txt 2>&1
+                  aws s3 sync ./rerun-allure-report s3://ci-gh-action-reports-dev/$REPO/$PR_NUM/$RUN_NUM/$ATTEMPT_NUM-rerun >> logs/gh_action_logs.txt 2>&1
                 fi
               fi
               if [ $? -ne 0 ]; then
@@ -467,9 +467,9 @@ jobs:
               echo -e "\n\n******** Upload logs to S3 ********" >> logs/gh_action_logs.txt
               if [[ "$IS_NIGHTLY_RUN" == "true" ]]; then
                 DATE=$(date +%Y%m%d)
-                aws s3 sync ./logs s3://ci-allure-reports/nightly-run-$CI_ENV/$DATE >> logs/gh_action_logs.txt 2>&1
+                aws s3 sync ./logs s3://ci-gh-action-reports-dev/nightly-run-$CI_ENV/$DATE >> logs/gh_action_logs.txt 2>&1
               else
-                aws s3 sync ./logs s3://ci-allure-reports/$REPO/$PR_NUM/$RUN_NUM/$ATTEMPT_NUM >> logs/gh_action_logs.txt 2>&1
+                aws s3 sync ./logs s3://ci-gh-action-reports-dev/$REPO/$PR_NUM/$RUN_NUM/$ATTEMPT_NUM >> logs/gh_action_logs.txt 2>&1
               fi
               if [ $? -ne 0 ]; then
                 echo "PR_ERROR_MSG=Failed to upload allure report to s3 bucket" >> $GITHUB_ENV
