@@ -108,14 +108,14 @@ jobs:
               echo "GITHUB_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_ENV
 
           # External PRs will not have access to secrets, so tests cannot run
-          - name: Skip integration tests for external PRs
-            if: ${{ github.event.pull_request.head.repo.fork == true && github.event_name == 'pull_request' }}
-            working-directory: ${{ github.workspace }}
-            run:  |
-              echo "Current repo: ${{ github.event.repository.full_name }}"
-              echo "Head Repo: ${{ github.event.pull_request.head.repo.full_name }}"
-              echo "Skipping integration tests for external PRs"
-              echo "SKIP_TESTS=true" >> $GITHUB_ENV
+          # - name: Skip integration tests for external PRs
+          #   if: ${{ github.event.pull_request.head.repo.fork == true && github.event_name == 'pull_request' }}
+          #   working-directory: ${{ github.workspace }}
+          #   run:  |
+          #     echo "Current repo: ${{ github.event.repository.full_name }}"
+          #     echo "Head Repo: ${{ github.event.pull_request.head.repo.full_name }}"
+          #     echo "Skipping integration tests for external PRs"
+          #     echo "SKIP_TESTS=true" >> $GITHUB_ENV
 
           # Skip integration tests when the following PR labels are present:
           # not-ready-for-ci / decommission-environment
@@ -255,7 +255,7 @@ jobs:
             if: ${{ env.SKIP_TESTS != 'true' }}
             uses: aws-actions/configure-aws-credentials@v3
             with:
-                role-to-assume: arn:aws:iam::707767160287:role/github-action-role
+                role-to-assume: arn:aws:iam::009732147623:role/github-action-role
                 role-session-name: GitHub_to_AWS_via_FederatedOIDC
                 aws-region: "us-east-1"
                 role-duration-seconds: 7200
@@ -304,14 +304,14 @@ jobs:
               if [[ "$IS_NIGHTLY_RUN" == "true" ]]; then
                 if [[ "$CI_ENV" == "gen3ff" ]]; then
                   NAMESPACE=nightly-build-ff
-                  HOSTNAME=nightly-build-ff.ci.planx-pla.net
+                  HOSTNAME=nightly-build-ff.ci.pcdc-dev.pedscommons.org
                 else
                   NAMESPACE=nightly-build
-                  HOSTNAME=nightly-build.ci.planx-pla.net
+                  HOSTNAME=nightly-build.ci.pcdc-dev.pedscommons.org
                 fi
               else
                 NAMESPACE=${REPO}-pr-${PR_NUM}
-                HOSTNAME=${REPO}-pr-${PR_NUM}.ci.planx-pla.net
+                HOSTNAME=${REPO}-pr-${PR_NUM}.ci.pcdc-dev.pedscommons.org
               fi
               echo "NAMESPACE=$NAMESPACE" >> $GITHUB_ENV
               echo "HOSTNAME=$HOSTNAME" >> $GITHUB_ENV
@@ -445,14 +445,14 @@ jobs:
               echo -e "\n\n******* Upload reports to S3 *******" >> logs/gh_action_logs.txt
               if [[ "$IS_NIGHTLY_RUN" == "true" ]]; then
                 DATE=$(date +%Y%m%d)
-                aws s3 sync ./allure-report s3://ci-allure-reports/nightly-run-$CI_ENV/$DATE >> logs/gh_action_logs.txt 2>&1
+                aws s3 sync ./allure-report s3://ci-gh-action-reports-dev/nightly-run-$CI_ENV/$DATE >> logs/gh_action_logs.txt 2>&1
                 if [ -n "$FAILED_TEST_SUITES" ]; then
-                  aws s3 sync ./rerun-allure-report s3://ci-allure-reports/nightly-run-$CI_ENV/$DATE-rerun >> logs/gh_action_logs.txt 2>&1
+                  aws s3 sync ./rerun-allure-report s3://ci-gh-action-reports-dev/nightly-run-$CI_ENV/$DATE-rerun >> logs/gh_action_logs.txt 2>&1
                 fi
               else
-                aws s3 sync ./allure-report s3://ci-allure-reports/$REPO/$PR_NUM/$RUN_NUM/$ATTEMPT_NUM >> logs/gh_action_logs.txt 2>&1
+                aws s3 sync ./allure-report s3://ci-gh-action-reports-dev/$REPO/$PR_NUM/$RUN_NUM/$ATTEMPT_NUM >> logs/gh_action_logs.txt 2>&1
                 if [ -n "$FAILED_TEST_SUITES" ]; then
-                  aws s3 sync ./rerun-allure-report s3://ci-allure-reports/$REPO/$PR_NUM/$RUN_NUM/$ATTEMPT_NUM-rerun >> logs/gh_action_logs.txt 2>&1
+                  aws s3 sync ./rerun-allure-report s3://ci-gh-action-reports-dev/$REPO/$PR_NUM/$RUN_NUM/$ATTEMPT_NUM-rerun >> logs/gh_action_logs.txt 2>&1
                 fi
               fi
               if [ $? -ne 0 ]; then
@@ -467,9 +467,9 @@ jobs:
               echo -e "\n\n******** Upload logs to S3 ********" >> logs/gh_action_logs.txt
               if [[ "$IS_NIGHTLY_RUN" == "true" ]]; then
                 DATE=$(date +%Y%m%d)
-                aws s3 sync ./logs s3://ci-allure-reports/nightly-run-$CI_ENV/$DATE >> logs/gh_action_logs.txt 2>&1
+                aws s3 sync ./logs s3://ci-gh-action-reports-dev/nightly-run-$CI_ENV/$DATE >> logs/gh_action_logs.txt 2>&1
               else
-                aws s3 sync ./logs s3://ci-allure-reports/$REPO/$PR_NUM/$RUN_NUM/$ATTEMPT_NUM >> logs/gh_action_logs.txt 2>&1
+                aws s3 sync ./logs s3://ci-gh-action-reports-dev/$REPO/$PR_NUM/$RUN_NUM/$ATTEMPT_NUM >> logs/gh_action_logs.txt 2>&1
               fi
               if [ $? -ne 0 ]; then
                 echo "PR_ERROR_MSG=Failed to upload allure report to s3 bucket" >> $GITHUB_ENV
@@ -491,23 +491,23 @@ jobs:
               if [ "${{ steps.upload_allure_report.outcome }}" == "success" ]; then
                 if [[ "$IS_NIGHTLY_RUN" == "true" ]]; then
                   DATE=$(date +%Y%m%d)
-                  echo -e "\nPlease find the detailed integration test report [here](https://allure.ci.planx-pla.net/nightly-run-$CI_ENV/$DATE/index.html)" >> output/report.md
+                  echo -e "\nPlease find the detailed integration test report [here](https://allure.ci.pcdc-dev.pedscommons.org/nightly-run-$CI_ENV/$DATE/index.html)" >> output/report.md
                   if [ -n "$FAILED_TEST_SUITES" ]; then
-                    echo -e "\nPlease find the detailed integration test report after rerunning failed tests [here](https://allure.ci.planx-pla.net/nightly-run-$CI_ENV/$DATE-rerun/index.html)" >> output/report.md
+                    echo -e "\nPlease find the detailed integration test report after rerunning failed tests [here](https://allure.ci.pcdc-dev.pedscommons.org/nightly-run-$CI_ENV/$DATE-rerun/index.html)" >> output/report.md
                   fi
                 else
-                  echo -e "\nPlease find the detailed integration test report [here](https://allure.ci.planx-pla.net/$REPO/$PR_NUM/$RUN_NUM/$ATTEMPT_NUM/index.html)" >> output/report.md
+                  echo -e "\nPlease find the detailed integration test report [here](https://allure.ci.pcdc-dev.pedscommons.org/$REPO/$PR_NUM/$RUN_NUM/$ATTEMPT_NUM/index.html)" >> output/report.md
                   if [ -n "$FAILED_TEST_SUITES" ]; then
-                    echo -e "\nPlease find the detailed integration test report after rerunning failed tests [here](https://allure.ci.planx-pla.net/$REPO/$PR_NUM/$RUN_NUM/$ATTEMPT_NUM-rerun/index.html)" >> output/report.md
+                    echo -e "\nPlease find the detailed integration test report after rerunning failed tests [here](https://allure.ci.pcdc-dev.pedscommons.org/$REPO/$PR_NUM/$RUN_NUM/$ATTEMPT_NUM-rerun/index.html)" >> output/report.md
                   fi
                 fi
               fi
               if [ "${{ steps.upload_gh_action_logs.outcome }}" == "success" ]; then
                 if [[ "$IS_NIGHTLY_RUN" == "true" ]]; then
                   DATE=$(date +%Y%m%d)
-                  echo -e "\nPlease find the Github Action logs [here](https://allure.ci.planx-pla.net/nightly-run-$CI_ENV/$DATE/gh_action_logs.txt)" >> output/report.md
+                  echo -e "\nPlease find the Github Action logs [here](https://allure.ci.pcdc-dev.pedscommons.org/nightly-run-$CI_ENV/$DATE/gh_action_logs.txt)" >> output/report.md
                 else
-                  echo -e "\nPlease find the Github Action logs [here](https://allure.ci.planx-pla.net/$REPO/$PR_NUM/$RUN_NUM/$ATTEMPT_NUM/gh_action_logs.txt)" >> output/report.md
+                  echo -e "\nPlease find the Github Action logs [here](https://allure.ci.pcdc-dev.pedscommons.org/$REPO/$PR_NUM/$RUN_NUM/$ATTEMPT_NUM/gh_action_logs.txt)" >> output/report.md
                 fi
               fi
 
