@@ -8,7 +8,7 @@ secretStoreServiceAccount:
   # -- (string) Name of the service account to create
   name: secret-store-sa
   # -- (string) AWS Role ARN for Secret Store to use
-  roleArn: arn:aws:iam::707767160287:role/devplanetv2-external-secrets-sa
+  roleArn: arn:aws:iam::009732147623:role/devplanetv2-external-secrets-sa
 externalSecrets:
   secretName: ci-allure-nginx-conf
 
@@ -51,10 +51,10 @@ service:
 ingress:
   scheme: internal
   environment: "devplanetv2"
-  certArn: "arn:aws:acm:us-east-1:707767160287:certificate/f427a646-94fd-4b91-8bcd-80f5920c1e46"
+  certArn: "arn:aws:acm:us-east-1:009732147623:certificate/5e7ee63b-fb31-4bc7-b6d5-b0d3e595d0a5"
   group: "devplanetv2-allure"
   sslPolicy: "ELBSecurityPolicy-TLS13-1-2-Res-FIPS-2023-04"
-  host: allure.ci.planx-pla.net
+  host: allure.ci.pcdc-dev.pedscommons.org
 
 # -- (map) Resource requests and limits for the containers in the pod
 resources:

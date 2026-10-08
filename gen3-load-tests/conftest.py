@@ -76,7 +76,7 @@ def pytest_runtest_logreport(report):
     try:
         sqs = boto3.client("sqs")
         queue_url = (
-            "https://sqs.us-east-1.amazonaws.com/707767160287/load-test-metrics-sqs"
+            "https://sqs.us-east-1.amazonaws.com/009732147623/load-test-metrics-sqs"
         )
         response = sqs.send_message(QueueUrl=queue_url, MessageBody=json.dumps(message))
         logger.info(f"[SQS MESSAGE SENT] MessageId: {response['MessageId']}")
