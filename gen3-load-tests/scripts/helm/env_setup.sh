@@ -67,8 +67,8 @@ AUDIT_QUEUE_URL=$(aws sqs create-queue --queue-name "$AUDIT_QUEUE_NAME" --query 
 UPLOAD_QUEUE_NAME="ci-data-upload-bucket-${namespace}"
 UPLOAD_QUEUE_URL=$(aws sqs create-queue --queue-name "$UPLOAD_QUEUE_NAME" --query 'QueueUrl' --output text)
 UPLOAD_QUEUE_ARN=$(aws sqs get-queue-attributes --queue-url "$UPLOAD_QUEUE_URL" --attribute-name QueueArn --query 'Attributes.QueueArn' --output text)
-UPLOAD_SNS_NAME="ci-data-upload-bucket"
-UPLOAD_SNS_ARN="arn:aws:sns:us-east-1:707767160287:ci-data-upload-bucket"
+UPLOAD_SNS_NAME="ci-gh-action-reports-dev"
+UPLOAD_SNS_ARN="arn:aws:sns:us-east-1:009732147623:ci-gh-action-reports-dev"
 
 if [ -z "$AUDIT_QUEUE_URL" ]; then
   echo "Initial Audit SQS queue creation failed, retrying in 60 seconds..."

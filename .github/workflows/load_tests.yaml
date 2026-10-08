@@ -183,7 +183,7 @@ jobs:
             if: ${{ env.SKIP_TESTS != 'true' }}
             uses: aws-actions/configure-aws-credentials@v3
             with:
-                role-to-assume: arn:aws:iam::707767160287:role/github-action-role
+                role-to-assume: arn:aws:iam::009732147623:role/github-action-role
                 role-session-name: GitHub_to_AWS_via_FederatedOIDC
                 aws-region: "us-east-1"
                 role-duration-seconds: 7200
@@ -202,7 +202,7 @@ jobs:
             # Change the HOSTNAME with full domain name
             run: |
               NAMESPACE=ci-perf
-              HOSTNAME=perf.ci.planx-pla.net
+              HOSTNAME=perf.ci.pcdc-dev.pedscommons.org
               echo "NAMESPACE=$NAMESPACE" >> $GITHUB_ENV
               echo "HOSTNAME=$HOSTNAME" >> $GITHUB_ENV
               namespace_exists=$(kubectl get namespace "$NAMESPACE" --no-headers --ignore-not-found)

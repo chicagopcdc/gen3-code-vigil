@@ -287,14 +287,14 @@ elif [ "$setup_type" == "manifest-env-setup" ]; then
         # Extract and update mds_url
         current_mds_url=$(echo "$json_content" | jq -r ".adapter_commons.gen3.mds_url // \"key not found\"")
         if [ "$current_mds_url" != "key not found" ]; then
-            modified_json=$(echo "$json_content" | jq ".adapter_commons.gen3.mds_url = \"https://${namespace}.planx-pla.net/\"")
+            modified_json=$(echo "$json_content" | jq ".adapter_commons.gen3.mds_url = \"https://${namespace}.pcdc-dev.pedscommons.org/\"")
             yq eval --inplace ".metadata.aggMdsConfig = ${modified_json}" "$ci_default_manifest_values_yaml"
         fi
 
         # Extract and update commons_url
         current_commons_url=$(echo "$json_content" | jq -r ".adapter_commons.gen3.commons_url // \"key not found\"")
         if [ "$current_commons_url" != "key not found" ]; then
-            modified_json=$(echo "$json_content" | jq ".adapter_commons.gen3.commons_url = \"${namespace}.planx-pla.net/\"")
+            modified_json=$(echo "$json_content" | jq ".adapter_commons.gen3.commons_url = \"${namespace}.pcdc-dev.pedscommons.org/\"")
             yq eval --inplace ".metadata.aggMdsConfig = ${modified_json}" "$ci_default_manifest_values_yaml"
         fi
     fi
@@ -329,8 +329,8 @@ AUDIT_QUEUE_URL=$(aws sqs create-queue --queue-name "$AUDIT_QUEUE_NAME" --query 
 UPLOAD_QUEUE_NAME="ci-data-upload-bucket-${namespace}"
 UPLOAD_QUEUE_URL=$(aws sqs create-queue --queue-name "$UPLOAD_QUEUE_NAME" --query 'QueueUrl' --output text)
 UPLOAD_QUEUE_ARN=$(aws sqs get-queue-attributes --queue-url "$UPLOAD_QUEUE_URL" --attribute-name QueueArn --query 'Attributes.QueueArn' --output text)
-UPLOAD_SNS_NAME="ci-data-upload-bucket"
-UPLOAD_SNS_ARN="arn:aws:sns:us-east-1:707767160287:ci-data-upload-bucket"
+UPLOAD_SNS_NAME="ci-gh-action-reports-dev"
+UPLOAD_SNS_ARN="arn:aws:sns:us-east-1:009732147623:ci-gh-action-reports-dev"
 
 if [ -z "$AUDIT_QUEUE_URL" ]; then
   echo "Initial Audit SQS queue creation failed, retrying in 60 seconds..."

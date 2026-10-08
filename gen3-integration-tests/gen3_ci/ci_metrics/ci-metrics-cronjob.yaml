@@ -30,7 +30,7 @@ spec:
                 #!/bin/bash
                 set -euo pipefail
 
-                QUEUE_URL="https://sqs.us-east-1.amazonaws.com/707767160287/ci-metrics-sqs"
+                QUEUE_URL="https://sqs.us-east-1.amazonaws.com/009732147623/ci-metrics-sqs"
                 REGION="${AWS_REGION:-us-east-1}"  # fallback if AWS_REGION not set
 
                 while true; do

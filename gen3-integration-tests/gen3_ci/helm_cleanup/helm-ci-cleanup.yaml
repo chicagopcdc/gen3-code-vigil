@@ -47,10 +47,10 @@ spec:
                 }
 
                 delete_queue_and_subscription() {
-                    AUDIT_QUEUE_URL="https://sqs.us-east-1.amazonaws.com/707767160287/ci-audit-service-sqs-${env}"
-                    UPLOAD_QUEUE_URL="https://sqs.us-east-1.amazonaws.com/707767160287/ci-data-upload-bucket-${env}"
+                    AUDIT_QUEUE_URL="https://sqs.us-east-1.amazonaws.com/009732147623/ci-audit-service-sqs-${env}"
+                    UPLOAD_QUEUE_URL="https://sqs.us-east-1.amazonaws.com/009732147623/ci-data-upload-bucket-${env}"
                     UPLOAD_QUEUE_ARN=$(aws sqs get-queue-attributes --queue-url "$UPLOAD_QUEUE_URL" --attribute-name QueueArn --query 'Attributes.QueueArn' --output text)
-                    SNS_TOPIC_ARN="arn:aws:sns:us-east-1:707767160287:ci-data-upload-bucket"
+                    SNS_TOPIC_ARN="arn:aws:sns:us-east-1:009732147623:ci-gh-action-reports-dev"
 
                     if aws sqs get-queue-attributes --queue-url "$UPLOAD_QUEUE_URL" &>/dev/null; then
 
@@ -80,7 +80,7 @@ spec:
 
 
                 delete_gen3_workflow_s3_buckets() {
-                    s3_bucket_pattern='^gen3wf-${env}-ci-planx-pla-net-.*$'
+                    s3_bucket_pattern='^gen3wf-${env}-ci-pcdc-dev-pedscommons-org-.*$'
                     buckets=$(aws s3api list-buckets --query 'Buckets[].Name' --output text)
                     for bucket in $buckets; do
                     if [[ $bucket =~ $s3_bucket_pattern ]]; then
