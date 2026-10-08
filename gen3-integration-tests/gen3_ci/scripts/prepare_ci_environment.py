@@ -58,7 +58,7 @@ def setup_env_for_helm(arguments):
     logger.info(f"File path: {file_path}")
     logger.info(f"Argument: {arguments}")
     result = subprocess.run(
-        [file_path] + arguments, capture_output=True, text=True, timeout=1200
+        [file_path] + arguments, capture_output=True, text=True, timeout=2100
     )
     if result.returncode == 0:
         logger.info("Script executed successfully. Output:")
@@ -108,7 +108,7 @@ def modify_env_for_manifest_pr(namespace, updated_folder, repo):
     """
     helm_branch = os.getenv("HELM_BRANCH")
     ci_default_manifest = (
-        f"{os.getenv('GH_WORKSPACE')}/gen3-gitops-ci/ci/{os.getenv("CI_ENV")}/values"
+        f"{os.getenv('GH_WORKSPACE')}/gen3-gitops-ci/ci/default/values"
     )
     target_manifest_path = f"{os.getenv('GH_WORKSPACE')}/{updated_folder}/values"
 
@@ -131,7 +131,7 @@ def modify_env_for_test_repo_pr(namespace):
     """
     helm_branch = os.getenv("HELM_BRANCH")
     ci_default_manifest = (
-        f"{os.getenv('GH_WORKSPACE')}/gen3-gitops-ci/ci/{os.getenv("CI_ENV")}/values"
+        f"{os.getenv('GH_WORKSPACE')}/gen3-gitops-ci/ci/default/values"
     )
     arguments = [
         namespace,
@@ -180,9 +180,21 @@ def prepare_ci_environment(namespace):
         result = modify_env_for_test_repo_pr(namespace)
         assert result.lower() == "success"
     elif repo in ("cdis-manifest", "gitops-qa", "gen3-gitops"):  # Manifest repos
-        updated_folders = os.getenv("UPDATED_FOLDERS", "").split(",")
+        updated_folders = os.getenv("SOURCE_CONFIG", "").split(",")
+        updated_folder = updated_folders[0] if updated_folders else ""
         if len(updated_folders) == 1 and updated_folders[0] == "":
             logger.info("No folders were updated. Skipping tests...")
+            # Update SKIP_TESTS to true in GITHUB_ENV
+            with open(os.getenv("GITHUB_ENV"), "a") as f:
+                f.write("SKIP_TESTS=true\n")
+            return
+        elif (
+            "cluster-values" in updated_folder
+            or "cluster-level-resources" in updated_folder
+        ):
+            logger.info(
+                "This PR is changing cluster-values/cluster-level-resources folder which is not testable"
+            )
             # Update SKIP_TESTS to true in GITHUB_ENV
             with open(os.getenv("GITHUB_ENV"), "a") as f:
                 f.write("SKIP_TESTS=true\n")
@@ -192,17 +204,7 @@ def prepare_ci_environment(namespace):
             raise Exception(
                 "More than 1 folder updated, please update only 1 folder per PR..."
             )
-        else:
-            updated_folder = updated_folders[0]
-            if "cluster-values" in updated_folder:
-                logger.info(
-                    "This PR is testing cluster-values folder which is not supported"
-                )
-                # Update SKIP_TESTS to true in GITHUB_ENV
-                with open(os.getenv("GITHUB_ENV"), "a") as f:
-                    f.write("SKIP_TESTS=true\n")
-                return
-            logger.info(f"Setting up env using folder: {updated_folder}")
+        logger.info(f"Setting up env using folder: {updated_folder}")
         result = modify_env_for_manifest_pr(namespace, updated_folder, repo)
         assert result.lower() == "success"
     else:  # Service repos
