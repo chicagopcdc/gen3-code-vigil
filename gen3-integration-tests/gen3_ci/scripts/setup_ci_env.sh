@@ -486,12 +486,15 @@ fi
 # For manifest-env-setup where target manifest is also ci/default, we will use portal and switch in future
 # so env doesnt need portal configuration
 if [[ "$setup_type" == "test-env-setup" || "$setup_type" == "service-env-setup" || ("$setup_type" == "manifest-env-setup"  && "$SOURCE_CONFIG" == "ci/default") ]]; then
-  if [[ "$CI_ENV" == "gen3ff" ]]; then
-    yq eval 'del(.portal)' --inplace "$ci_default_manifest_values_yaml"
-    yq eval '.global.frontendRoot = "gen3ff"' --inplace "$ci_default_manifest_values_yaml"
-  else
-    yq eval 'del(.frontend-framework)' --inplace "$ci_default_manifest_values_yaml"
-  fi
+  # Only the frontend framework is used (portal is not deployed), regardless of CI_ENV
+  yq eval 'del(.portal)' --inplace "$ci_default_manifest_values_yaml"
+  yq eval '.global.frontendRoot = "gen3ff"' --inplace "$ci_default_manifest_values_yaml"
+  # if [[ "$CI_ENV" == "gen3ff" ]]; then
+  #   yq eval 'del(.portal)' --inplace "$ci_default_manifest_values_yaml"
+  #   yq eval '.global.frontendRoot = "gen3ff"' --inplace "$ci_default_manifest_values_yaml"
+  # else
+  #   yq eval 'del(.frontend-framework)' --inplace "$ci_default_manifest_values_yaml"
+  # fi
 fi
 
 echo $HOSTNAME
