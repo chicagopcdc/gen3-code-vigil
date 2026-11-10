@@ -530,6 +530,8 @@ external_secrets_off_flags=(
 ci_script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 local_user_yaml_flags=(
   --set fence.usersync.userYamlS3Path=none
+  # no dbGaP SFTP server is available in CI, so only sync from user.yaml
+  --set fence.usersync.syncFromDbgap=false
   --set-file fence.USER_YAML="${ci_script_dir}/../../test_data/test_setup/user.yaml"
 )
 
