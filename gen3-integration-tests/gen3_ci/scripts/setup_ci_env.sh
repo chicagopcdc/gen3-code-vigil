@@ -497,6 +497,24 @@ if [[ "$setup_type" == "test-env-setup" || "$setup_type" == "service-env-setup" 
   # fi
 fi
 
+# CI-only overrides so the environment comes up without the AWS Secrets Manager "ci-*" secrets
+# (they do not exist in this AWS account) and without services whose dependencies are not available here.
+# These only change the generated values file for this CI namespace.
+# - fence: bucket credentials ("cdistest") are not defined, so drop S3_BUCKETS and the audit SQS credential reference
+if yq eval '.fence' "$ci_default_manifest_values_yaml" | grep -qv 'null'; then
+  yq eval 'del(.fence.FENCE_CONFIG_PUBLIC.S3_BUCKETS)' -i "$ci_default_manifest_values_yaml"
+  yq eval 'del(.fence.FENCE_CONFIG_PUBLIC.PUSH_AUDIT_LOGS_CONFIG.aws_sqs_config.aws_cred)' -i "$ci_default_manifest_values_yaml"
+fi
+# - orthanc/dicom-server: config comes from a Secrets Manager secret that does not exist (chart default is invalid)
+# - ssjdispatcher: needs an IAM role for its service account and an SNS-fed queue, neither available
+# - zendesk-wrapper: image lives in another AWS account's ECR and cannot be pulled
+for disabled_service in orthanc dicom-server ssjdispatcher zendesk-wrapper; do
+  if yq eval ".[\"${disabled_service}\"]" "$ci_default_manifest_values_yaml" | grep -qv 'null'; then
+    echo "Disabling $disabled_service for CI"
+    yq eval ".[\"${disabled_service}\"].enabled = false" -i "$ci_default_manifest_values_yaml"
+  fi
+done
+
 echo $HOSTNAME
 # External Secrets webhook is not reachable from the API server on this cluster, so do not render
 # any ExternalSecret/SecretStore objects. Secrets are created locally by the chart instead.
@@ -568,6 +586,19 @@ ci_es_indices_setup() {
   echo "Killing port-forward process..."
 }
 
+# Print pod status, recent events and logs for failing pods so the CI log shows why they failed
+print_failure_diagnostics() {
+  local pods="$1"
+  echo "===== Pod status ====="
+  kubectl get pods -n "${namespace}" || true
+  echo "===== Recent events ====="
+  kubectl get events -n "${namespace}" --sort-by=.lastTimestamp | tail -40 || true
+  for pod in $pods; do
+    echo "===== Logs: $pod ====="
+    kubectl logs -n "${namespace}" "$pod" --all-containers --tail=40 2>&1 || true
+  done
+}
+
 wait_for_pods_ready() {
   export timeout=1800
   export interval=20
@@ -605,7 +636,9 @@ wait_for_pods_ready() {
         )
       | .metadata.name')
     if [[ -n "$failure_pods" ]]; then
-      echo "FAILURE_PODS=$failure_pods" >> "$GITHUB_ENV"
+      # GITHUB_ENV values must be single-line, so join pod names with spaces
+      echo "FAILURE_PODS=$(echo "$failure_pods" | tr '\n' ' ')" >> "$GITHUB_ENV"
+      print_failure_diagnostics "$failure_pods"
       return 1
     fi
   done
@@ -617,7 +650,7 @@ wait_for_pods_ready() {
     | select(.ready != true)
     | "🔴 Pod: \($pod_name), Container: \(.name) is NOT ready"'
 
-  kubectl get pods -n "${namespace}"
+  print_failure_diagnostics "$(echo "$not_ready_json" | jq -r '.[].metadata.name')"
   return 1
 }
 
