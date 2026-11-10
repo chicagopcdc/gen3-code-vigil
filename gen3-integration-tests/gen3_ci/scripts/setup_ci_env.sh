@@ -524,6 +524,15 @@ external_secrets_off_flags=(
   --set global.aws.externalSecrets.enabled=false
   --set orthanc.externalSecrets.createK8sOrthancS3G3auto=true
 )
+# The upstream CI values read the user list from s3://cdis-gen3-users/ci/user.yaml, a bucket this AWS
+# account cannot read, so usersync never created the test users. Use the repo's own user.yaml instead
+# (userYamlS3Path=none makes the usersync job use the "useryaml" configmap built from fence.USER_YAML).
+ci_script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+local_user_yaml_flags=(
+  --set fence.usersync.userYamlS3Path=none
+  --set-file fence.USER_YAML="${ci_script_dir}/../../test_data/test_setup/user.yaml"
+)
+
 install_helm_chart() {
   #For custom helm branch
   if [ "$helm_branch" != "master" ]; then
@@ -533,7 +542,7 @@ install_helm_chart() {
     echo "grep"
     cat $ci_default_manifest_values_yaml | grep -i "elasticsearch:"
     echo "installing helm chart"
-    if helm upgrade --install ${namespace} gen3-helm/helm/gen3 --set global.hostname="${HOSTNAME}" --set global.externalSecrets.apiVersion=external-secrets.io/v1beta1 --set portal.enabled=false --set ambassador.enabled=false "${external_secrets_off_flags[@]}" -f $ci_default_manifest_values_yaml -f $ci_default_manifest_portal_yaml -n "${namespace}" --debug; then
+    if helm upgrade --install ${namespace} gen3-helm/helm/gen3 --set global.hostname="${HOSTNAME}" --set global.externalSecrets.apiVersion=external-secrets.io/v1beta1 --set portal.enabled=false --set ambassador.enabled=false "${external_secrets_off_flags[@]}" "${local_user_yaml_flags[@]}" -f $ci_default_manifest_values_yaml -f $ci_default_manifest_portal_yaml -n "${namespace}" --debug; then
       echo "Helm chart installed!"
     else
       return 1
@@ -541,7 +550,7 @@ install_helm_chart() {
   else
     helm repo add gen3 https://helm.gen3.org
     helm repo update
-    if helm upgrade --install ${namespace} gen3/gen3 --set global.hostname="${HOSTNAME}" --set global.externalSecrets.apiVersion=external-secrets.io/v1beta1 --set portal.enabled=false --set ambassador.enabled=false "${external_secrets_off_flags[@]}" -f $ci_default_manifest_values_yaml -f $ci_default_manifest_portal_yaml -n "${namespace}" --debug; then
+    if helm upgrade --install ${namespace} gen3/gen3 --set global.hostname="${HOSTNAME}" --set global.externalSecrets.apiVersion=external-secrets.io/v1beta1 --set portal.enabled=false --set ambassador.enabled=false "${external_secrets_off_flags[@]}" "${local_user_yaml_flags[@]}" -f $ci_default_manifest_values_yaml -f $ci_default_manifest_portal_yaml -n "${namespace}" --debug; then
       echo "Helm chart installed!"
     else
       return 1
