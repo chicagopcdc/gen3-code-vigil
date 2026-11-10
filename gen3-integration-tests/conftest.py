@@ -1,6 +1,7 @@
 import json
 import os
 import shutil
+import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -62,6 +63,17 @@ class CustomScheduling(LoadScopeScheduling):
         return nodeid.rsplit("::", 1)[0]
 
 
+# Written by the xdist controller when Google bucket setup fails; read by workers (separate processes)
+GOOGLE_BUCKET_FAILED_FLAG = (
+    Path(tempfile.gettempdir()) / f"gen3_google_bucket_setup_failed_{os.getenv('NAMESPACE', 'default')}"
+)
+
+
+def pytest_runtest_setup(item):
+    if item.get_closest_marker("requires_google_bucket") and GOOGLE_BUCKET_FAILED_FLAG.exists():
+        pytest.skip("Google bucket setup failed (no GCP project available in this environment)")
+
+
 def pytest_collection_finish(session):
     global requires_fence_client_marker_present
     global requires_google_bucket_marker_present
@@ -70,6 +82,7 @@ def pytest_collection_finish(session):
         return
     # Iterate through the collected test items
     if not hasattr(session.config, "workerinput"):
+        GOOGLE_BUCKET_FAILED_FLAG.unlink(missing_ok=True)
         for item in session.items:
             # Access the markers for each test item
             if (
@@ -83,7 +96,15 @@ def pytest_collection_finish(session):
                 item.get_closest_marker("requires_google_bucket")
                 and not requires_google_bucket_marker_present
             ):
-                setup.setup_google_buckets()
+                # Google bucket setup needs a real GCP project; if it is unavailable do not abort the
+                # whole session, only skip the tests that need the buckets (see pytest_runtest_setup).
+                try:
+                    setup.setup_google_buckets()
+                except Exception as e:
+                    logger.error(
+                        f"Google bucket setup failed, tests requiring it will be skipped: {e}"
+                    )
+                    GOOGLE_BUCKET_FAILED_FLAG.write_text(str(e))
                 requires_google_bucket_marker_present = True
         # Run Usersync job
         setup.run_usersync()

@@ -37,7 +37,7 @@ permissions:
 
 jobs:
     setup:
-      runs-on: ubuntu-latest
+      runs-on: ubuntu-24.04
       outputs:
         TEST_SUITE: ${{ steps.setvars.outputs.TEST_SUITE }}
         RELEASE_VERSION: ${{ steps.setvars.outputs.RELEASE_VERSION }}
@@ -57,7 +57,7 @@ jobs:
             echo "TEST_SUITE=$TEST_SUITE" >> $GITHUB_OUTPUT
             echo "RELEASE_VERSION=$RELEASE_VERSION" >> $GITHUB_OUTPUT
     load_tests:
-        runs-on: ubuntu-latest
+        runs-on: ubuntu-24.04
         needs: setup
 
         defaults:

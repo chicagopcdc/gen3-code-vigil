@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   run-test-on-dev-env:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     defaults:
       run:

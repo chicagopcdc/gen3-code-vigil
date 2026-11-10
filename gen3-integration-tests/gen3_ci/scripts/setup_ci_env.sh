@@ -346,9 +346,10 @@ AUDIT_QUEUE_NAME="ci-audit-service-sqs-${namespace}"
 AUDIT_QUEUE_URL=$(aws sqs create-queue --queue-name "$AUDIT_QUEUE_NAME" --query 'QueueUrl' --output text)
 UPLOAD_QUEUE_NAME="ci-data-upload-bucket-${namespace}"
 UPLOAD_QUEUE_URL=$(aws sqs create-queue --queue-name "$UPLOAD_QUEUE_NAME" --query 'QueueUrl' --output text)
-UPLOAD_QUEUE_ARN=$(aws sqs get-queue-attributes --queue-url "$UPLOAD_QUEUE_URL" --attribute-name QueueArn --query 'Attributes.QueueArn' --output text)
-UPLOAD_SNS_NAME="ci-gh-action-reports-dev"
-UPLOAD_SNS_ARN="arn:aws:sns:us-east-1:009732147623:ci-gh-action-reports-dev"
+# SNS topic does not exist in the AWS account, so SNS steps are disabled.
+# UPLOAD_QUEUE_ARN=$(aws sqs get-queue-attributes --queue-url "$UPLOAD_QUEUE_URL" --attribute-name QueueArn --query 'Attributes.QueueArn' --output text)
+# UPLOAD_SNS_NAME="ci-gh-action-reports-dev"
+# UPLOAD_SNS_ARN="arn:aws:sns:us-east-1:009732147623:ci-gh-action-reports-dev"
 
 if [ -z "$AUDIT_QUEUE_URL" ]; then
   echo "Initial Audit SQS queue creation failed, retrying in 60 seconds..."
@@ -370,44 +371,44 @@ if [ -z "$UPLOAD_QUEUE_URL" ]; then
   fi
 fi
 
-# Subscribing the SQS queue to the SNS topic.
-aws sns subscribe \
-  --topic-arn "$UPLOAD_SNS_ARN" \
-  --protocol sqs \
-  --notification-endpoint "$UPLOAD_QUEUE_ARN"
-
-# Set SQS policy on SQS queue.
-cat <<EOF > raw-policy.json
-{
-  "Version": "2012-10-17",
-  "Id": "sqspolicy",
-  "Statement": [
-    {
-      "Sid": "100",
-      "Effect": "Allow",
-      "Principal": "*",
-      "Action": "sqs:SendMessage",
-      "Resource": "$UPLOAD_QUEUE_ARN",
-      "Condition": {
-        "ArnEquals": {
-          "aws:SourceArn": "$UPLOAD_SNS_ARN"
-        }
-      }
-    }
-  ]
-}
-EOF
-
-# Step 2: Escape the policy JSON into a single string and embed it in the final file and save as final attributes JSON
-escaped_policy=$(jq -c . raw-policy.json | jq -R '{ Policy: . }')
-echo "$escaped_policy" > policy.json
-
-if ! aws sqs set-queue-attributes \
-  --queue-url "$UPLOAD_QUEUE_URL" \
-  --attributes file://policy.json ; then
-  echo "❌ Failed to set SQS queue attributes" >&2
-  exit 1
-fi
+# # Subscribing the SQS queue to the SNS topic.
+# aws sns subscribe \
+#   --topic-arn "$UPLOAD_SNS_ARN" \
+#   --protocol sqs \
+#   --notification-endpoint "$UPLOAD_QUEUE_ARN"
+#
+# # Set SQS policy on SQS queue.
+# cat <<EOF > raw-policy.json
+# {
+#   "Version": "2012-10-17",
+#   "Id": "sqspolicy",
+#   "Statement": [
+#     {
+#       "Sid": "100",
+#       "Effect": "Allow",
+#       "Principal": "*",
+#       "Action": "sqs:SendMessage",
+#       "Resource": "$UPLOAD_QUEUE_ARN",
+#       "Condition": {
+#         "ArnEquals": {
+#           "aws:SourceArn": "$UPLOAD_SNS_ARN"
+#         }
+#       }
+#     }
+#   ]
+# }
+# EOF
+#
+# # Step 2: Escape the policy JSON into a single string and embed it in the final file and save as final attributes JSON
+# escaped_policy=$(jq -c . raw-policy.json | jq -R '{ Policy: . }')
+# echo "$escaped_policy" > policy.json
+#
+# if ! aws sqs set-queue-attributes \
+#   --queue-url "$UPLOAD_QUEUE_URL" \
+#   --attributes file://policy.json ; then
+#   echo "❌ Failed to set SQS queue attributes" >&2
+#   exit 1
+# fi
 
 common_param_updates=(
   ".fence.FENCE_CONFIG_PUBLIC.GOOGLE_GROUP_PREFIX|$ENV_PREFIX"
@@ -485,25 +486,73 @@ fi
 # For manifest-env-setup where target manifest is also ci/default, we will use portal and switch in future
 # so env doesnt need portal configuration
 if [[ "$setup_type" == "test-env-setup" || "$setup_type" == "service-env-setup" || ("$setup_type" == "manifest-env-setup"  && "$SOURCE_CONFIG" == "ci/default") ]]; then
-  if [[ "$CI_ENV" == "gen3ff" ]]; then
-    yq eval 'del(.portal)' --inplace "$ci_default_manifest_values_yaml"
-    yq eval '.global.frontendRoot = "gen3ff"' --inplace "$ci_default_manifest_values_yaml"
-  else
-    yq eval 'del(.frontend-framework)' --inplace "$ci_default_manifest_values_yaml"
-  fi
+  # Only the frontend framework is used (portal is not deployed), regardless of CI_ENV
+  yq eval 'del(.portal)' --inplace "$ci_default_manifest_values_yaml"
+  yq eval '.global.frontendRoot = "gen3ff"' --inplace "$ci_default_manifest_values_yaml"
+  # if [[ "$CI_ENV" == "gen3ff" ]]; then
+  #   yq eval 'del(.portal)' --inplace "$ci_default_manifest_values_yaml"
+  #   yq eval '.global.frontendRoot = "gen3ff"' --inplace "$ci_default_manifest_values_yaml"
+  # else
+  #   yq eval 'del(.frontend-framework)' --inplace "$ci_default_manifest_values_yaml"
+  # fi
 fi
 
+# CI-only overrides so the environment comes up without the AWS Secrets Manager "ci-*" secrets
+# (they do not exist in this AWS account) and without services whose dependencies are not available here.
+# These only change the generated values file for this CI namespace.
+# - fence: bucket credentials ("cdistest") are not defined, so drop S3_BUCKETS and the audit SQS credential reference
+if yq eval '.fence' "$ci_default_manifest_values_yaml" | grep -qv 'null'; then
+  yq eval 'del(.fence.FENCE_CONFIG_PUBLIC.S3_BUCKETS)' -i "$ci_default_manifest_values_yaml"
+  yq eval 'del(.fence.FENCE_CONFIG_PUBLIC.PUSH_AUDIT_LOGS_CONFIG.aws_sqs_config.aws_cred)' -i "$ci_default_manifest_values_yaml"
+fi
+# - orthanc/dicom-server: config comes from a Secrets Manager secret that does not exist (chart default is invalid)
+# - ssjdispatcher: needs an IAM role for its service account and an SNS-fed queue, neither available
+# - zendesk-wrapper: image lives in another AWS account's ECR and cannot be pulled
+for disabled_service in orthanc dicom-server ssjdispatcher zendesk-wrapper; do
+  if yq eval ".[\"${disabled_service}\"]" "$ci_default_manifest_values_yaml" | grep -qv 'null'; then
+    echo "Disabling $disabled_service for CI"
+    yq eval ".[\"${disabled_service}\"].enabled = false" -i "$ci_default_manifest_values_yaml"
+  fi
+done
+
 echo $HOSTNAME
+# External Secrets webhook is not reachable from the API server on this cluster, so do not render
+# any ExternalSecret/SecretStore objects. Secrets are created locally by the chart instead.
+# To go back to Secrets Manager, empty this array.
+external_secrets_off_flags=(
+  --set global.externalSecrets.deploy=false
+  --set global.aws.externalSecrets.enabled=false
+  --set orthanc.externalSecrets.createK8sOrthancS3G3auto=true
+)
+# The upstream CI values read the user list from s3://cdis-gen3-users/ci/user.yaml, a bucket this AWS
+# account cannot read, so usersync never created the test users. Use the repo's own user.yaml instead
+# (userYamlS3Path=none makes the usersync job use the "useryaml" configmap built from fence.USER_YAML).
+ci_script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+local_user_yaml_flags=(
+  --set fence.usersync.userYamlS3Path=none
+  # no dbGaP SFTP server is available in CI, so only sync from user.yaml
+  --set fence.usersync.syncFromDbgap=false
+  --set-file fence.USER_YAML="${ci_script_dir}/../../test_data/test_setup/user.yaml"
+)
+
+# The upstream CI values reference an ACM certificate and WAF ACL from another AWS account, so the ALB
+# listener could never be created. Use this account's wildcard certificate for *.ci.pcdc-dev.pedscommons.org
+# and drop the WAF ACL (empty string = no WAF).
+ci_ingress_flags=(
+  --set 'revproxy.ingress.annotations.alb\.ingress\.kubernetes\.io/certificate-arn=arn:aws:acm:us-east-1:009732147623:certificate/e40ef325-1b81-4480-8833-6660586c9a37'
+  --set 'revproxy.ingress.annotations.alb\.ingress\.kubernetes\.io/wafv2-acl-arn='
+)
+
 install_helm_chart() {
   #For custom helm branch
   if [ "$helm_branch" != "master" ]; then
-    git clone --branch "$helm_branch" https://github.com/uc-cdis/gen3-helm.git
+    git clone --branch "$helm_branch" https://github.com/chicagopcdc/gen3-helm.git
     echo "dependency update"
     helm dependency update gen3-helm/helm/gen3
     echo "grep"
     cat $ci_default_manifest_values_yaml | grep -i "elasticsearch:"
     echo "installing helm chart"
-    if helm upgrade --install ${namespace} gen3-helm/helm/gen3 --set global.hostname="${HOSTNAME}" -f $ci_default_manifest_values_yaml -f $ci_default_manifest_portal_yaml -n "${namespace}" --debug; then
+    if helm upgrade --install ${namespace} gen3-helm/helm/gen3 --set global.hostname="${HOSTNAME}" --set global.externalSecrets.apiVersion=external-secrets.io/v1beta1 --set portal.enabled=false --set ambassador.enabled=false "${external_secrets_off_flags[@]}" "${local_user_yaml_flags[@]}" "${ci_ingress_flags[@]}" -f $ci_default_manifest_values_yaml -f $ci_default_manifest_portal_yaml -n "${namespace}" --debug; then
       echo "Helm chart installed!"
     else
       return 1
@@ -511,7 +560,7 @@ install_helm_chart() {
   else
     helm repo add gen3 https://helm.gen3.org
     helm repo update
-    if helm upgrade --install ${namespace} gen3/gen3 --set global.hostname="${HOSTNAME}" -f $ci_default_manifest_values_yaml -f $ci_default_manifest_portal_yaml -n "${namespace}" --debug; then
+    if helm upgrade --install ${namespace} gen3/gen3 --set global.hostname="${HOSTNAME}" --set global.externalSecrets.apiVersion=external-secrets.io/v1beta1 --set portal.enabled=false --set ambassador.enabled=false "${external_secrets_off_flags[@]}" "${local_user_yaml_flags[@]}" "${ci_ingress_flags[@]}" -f $ci_default_manifest_values_yaml -f $ci_default_manifest_portal_yaml -n "${namespace}" --debug; then
       echo "Helm chart installed!"
     else
       return 1
@@ -556,6 +605,19 @@ ci_es_indices_setup() {
   echo "Killing port-forward process..."
 }
 
+# Print pod status, recent events and logs for failing pods so the CI log shows why they failed
+print_failure_diagnostics() {
+  local pods="$1"
+  echo "===== Pod status ====="
+  kubectl get pods -n "${namespace}" || true
+  echo "===== Recent events ====="
+  kubectl get events -n "${namespace}" --sort-by=.lastTimestamp | tail -40 || true
+  for pod in $pods; do
+    echo "===== Logs: $pod ====="
+    kubectl logs -n "${namespace}" "$pod" --all-containers --tail=40 2>&1 || true
+  done
+}
+
 wait_for_pods_ready() {
   export timeout=1800
   export interval=20
@@ -593,7 +655,9 @@ wait_for_pods_ready() {
         )
       | .metadata.name')
     if [[ -n "$failure_pods" ]]; then
-      echo "FAILURE_PODS=$failure_pods" >> "$GITHUB_ENV"
+      # GITHUB_ENV values must be single-line, so join pod names with spaces
+      echo "FAILURE_PODS=$(echo "$failure_pods" | tr '\n' ' ')" >> "$GITHUB_ENV"
+      print_failure_diagnostics "$failure_pods"
       return 1
     fi
   done
@@ -605,7 +669,7 @@ wait_for_pods_ready() {
     | select(.ready != true)
     | "🔴 Pod: \($pod_name), Container: \(.name) is NOT ready"'
 
-  kubectl get pods -n "${namespace}"
+  print_failure_diagnostics "$(echo "$not_ready_json" | jq -r '.[].metadata.name')"
   return 1
 }
 
